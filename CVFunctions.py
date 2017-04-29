@@ -92,15 +92,6 @@ def formatContours(contours,image,pad=20):
     img = aspectScale(image[y:y+h,x:x+w],200)
     return img
 
-# accepts image
-# returns image contours as image scaled and centered in 200x200 frame
-def formatImage(image,stroke=3):
-    contours = findContours(image)
-    img = imageFromContours(contours[0],image.shape,stroke)
-    img = aspectFill(image,contours[0])
-    img = scale(image,200)
-    return img
-
 # accepts image with pixels 0-255
 # returns image with pixels 0.0-1.0
 def ones(image):
@@ -112,3 +103,75 @@ def displayJ(A,B):
     n = np.multiply(A,B)
     u = np.subtract(np.add(A,B),n)
     display([A,B,n,u])
+    
+# accepts an image and size
+# returns the image aspect scaled to the size
+def aspectScale(image,size):
+    width,height = float(image.shape[1]),float(image.shape[0])
+    delta = 1
+    if width > height:
+        delta = float(size)/width
+    if width < height:
+        delta = float(size)/height
+    elif width == height:
+        return scale(image,size)
+    dw = int(delta*width)
+    dh = int(delta*height)
+    img = ones(cv2.resize(image,(dw,dh)))
+    width,height = img.shape[:2]
+    frame = np.zeros((size,size,3))
+    padTB = float(size-height)/2
+    padLR = float(size-width)/2
+    T,B = int(np.floor(padTB)),size-int(np.ceil(padTB))
+    L,R = int(np.floor(padLR)),size-int(np.ceil(padLR))
+    frame[L:R,T:B] = img
+    return frame
+
+# accepts image and resulting size
+# returns image scaled to size
+def scale(image,size):
+    return cv2.resize(image,(size,size))
+
+# accepts image and contours
+# returns image scaled aspect to fill image frame
+def aspectFill(image,contours):
+    frame = image.shape
+    bounds = cv2.boundingRect(contours)
+    return squareCrop(image,bounds,pad=10)
+
+# accepts image and degrees to rotate by
+# returns rotated image
+def rotate(image,degrees):
+    rows,cols = image.shape[:2]
+    mat = cv2.getRotationMatrix2D((cols/2, rows/2), degrees, 1)
+    return cv2.warpAffine(image, mat, (cols, rows))
+
+# accepts image
+# returns image processed for finding contours
+def process(image):
+    adjusted_img = image
+    adjusted_img = cv2.GaussianBlur(adjusted_img, (19,11), 100)
+    adjusted_img = thresh(adjusted_img,85, 255, cv2.THRESH_BINARY)
+    return adjusted_img
+
+# accepts image
+# returns list of images clipped from original that may be of a license plate
+def possiblePlates(image):
+    original_img = image
+    contours = findContours(process(original_img))
+    contours = getLargeContours(contours,original_img.shape)
+    possible_plate_contours = []
+    for i in range(len(contours)):
+        x,y,w,h = cv2.boundingRect(contours[i])
+        aspect = aspectRatio(w,h)
+        if (aspect > 1) and (aspect < 3):
+            possible_plate_contours.append(contours[i])
+    if len(possible_plate_contours) != 0:
+        sub_images = []
+        for contour in possible_plate_contours:
+            x,y,w,h = cv2.boundingRect(contour)
+            sub_images.append(original_img[y:y+h,x:x+w])
+        return sub_images
+    return [np.zeros(image.shape)]
+
+
