@@ -62,7 +62,7 @@ def getLargeContours(contours,shape):
     for i in range(len(contours)):
         x,y,w,h = cv2.boundingRect(contours[i])
         ratio = cv2.contourArea(contours[i])/(shape[0]*shape[1])
-        if (ratio > 0.002) and (ratio < 0.1):
+        if (ratio > 0.002) and (ratio < 0.01):
             largeContours.append(contours[i])
     return largeContours
     
@@ -94,8 +94,11 @@ def formatContours(contours,image,pad=20):
 
 # accepts image with pixels 0-255
 # returns image with pixels 0.0-1.0
-def ones(image):
-    return np.round(np.divide(image.astype(float),255))
+def ones(image,ROUND=False):
+    if ROUND:
+        return np.round(np.divide(image.astype(float),255))
+    else:
+        return np.divide(image.astype(float),255)
 
 # accepts images A and B
 # displays the steps of taking the jaccard coefficient of A and B
@@ -148,30 +151,74 @@ def rotate(image,degrees):
 
 # accepts image
 # returns image processed for finding contours
-def process(image):
+def process_1(image):
     adjusted_img = image
     adjusted_img = cv2.GaussianBlur(adjusted_img, (19,11), 100)
     adjusted_img = thresh(adjusted_img,85, 255, cv2.THRESH_BINARY)
     return adjusted_img
 
 # accepts image
+# returns image processed for finding contours
+def process_2(image):
+    adjusted_img = image
+    adjusted_img = cv2.GaussianBlur(adjusted_img, (11,11), 20)
+    adjusted_img = thresh(adjusted_img,115, 255, cv2.THRESH_BINARY)
+    return adjusted_img
+
+# accepts image
 # returns list of images clipped from original that may be of a license plate
-def possiblePlates(image):
+def possiblePlates_1(image):
     original_img = image
-    contours = findContours(process(original_img))
+    contours = findContours(process_1(original_img))
     contours = getLargeContours(contours,original_img.shape)
     possible_plate_contours = []
     for i in range(len(contours)):
         x,y,w,h = cv2.boundingRect(contours[i])
         aspect = aspectRatio(w,h)
-        if (aspect > 1) and (aspect < 3):
+        if (aspect > 1.8) and (aspect < 3):
             possible_plate_contours.append(contours[i])
+    blank_img = np.zeros(image.shape)
     if len(possible_plate_contours) != 0:
         sub_images = []
         for contour in possible_plate_contours:
             x,y,w,h = cv2.boundingRect(contour)
             sub_images.append(original_img[y:y+h,x:x+w])
         return sub_images
-    return [np.zeros(image.shape)]
+    return [blank_img]
+
+# accepts image
+# returns list of images clipped from original that may be of a license plate
+def possiblePlates_2(image):
+    original_img = image
+    contours = findContours(process_2(original_img))
+    contours = getLargeContours(contours,original_img.shape)
+    possible_plate_contours = []
+    for i in range(len(contours)):
+        x,y,w,h = cv2.boundingRect(contours[i])
+        aspect = aspectRatio(w,h)
+        if (aspect > 1.8) and (aspect < 3):
+            possible_plate_contours.append(contours[i])
+    blank_img = np.zeros(image.shape)
+    if len(possible_plate_contours) != 0:
+        sub_images = []
+        for contour in possible_plate_contours:
+            x,y,w,h = cv2.boundingRect(contour)
+            sub_images.append(original_img[y:y+h,x:x+w])
+        return sub_images
+    return [blank_img]
+
+# accepts image
+# returns list of images clipped from original that may be of a license plate
+def possiblePlates(image):
+    return possiblePlates_1(image) + possiblePlates_2(image)
+
+# accepts two images A,B
+# returns jaccard coefficient of A,B
+def J(a,b):
+    A,B = ones(a),ones(b)
+    n = np.multiply(A,B)
+    u = np.subtract(np.add(A,B),n)
+    n,u = np.sum(n),np.sum(u)
+    return float(n)/float(u)
 
 
