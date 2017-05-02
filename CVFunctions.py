@@ -222,3 +222,50 @@ def J(a,b):
     return float(n)/float(u)
 
 
+#- - - - - -                         - - - - - -#
+#- - - - - - DEMO SPECIFIC FUNCTIONS - - - - - -#
+#- - - - - -                         - - - - - -#
+
+def largestContour(contours):
+    maxArea,index = None,0
+    for i in range(len(contours)):
+        if i == 0:
+            maxArea = cv2.contourArea(contours[i])
+            index = i
+        else:
+            area = cv2.contourArea(contours[i])
+            if area > maxArea:
+                maxArea = area
+                index = i
+    return index
+
+def boundingBoxImage(contours,image,color=(0.9,0.7,0.0),stroke=4):
+    box_img = np.zeros(image.shape)
+    for contour in contours:
+        x,y,w,h = cv2.boundingRect(contour)
+        cv2.rectangle(box_img,(x,y),(x+w,y+h),color,stroke)
+    return box_img
+
+def possiblePlateContours(contours,image):
+    possible_plate_contours = []
+    for i in range(len(contours)):
+        x,y,w,h = cv2.boundingRect(contours[i])
+        aspect = aspectRatio(w,h)
+        if (aspect > 1.8) and (aspect < 3) and (w > h):
+            possible_plate_contours.append(contours[i])
+    return possible_plate_contours
+    
+def boxProjectionFromContours(contours,image):
+    blank_img = np.zeros(image.shape)
+    for contour in contours:
+        x,y,w,h = cv2.boundingRect(contour)
+        blank_img[y:y+h,x:x+w] = image[y:y+h,x:x+w]
+    return blank_img
+
+def projectPossiblePlates(contours,image):
+    possible_plates = []
+    for contour in contours:
+        x,y,w,h = cv2.boundingRect(contour)
+        possible_plates.append(image[y:y+h,x:x+w])
+    return possible_plates
+
