@@ -165,6 +165,11 @@ def process_2(image):
     adjusted_img = thresh(adjusted_img,115, 255, cv2.THRESH_BINARY)
     return adjusted_img
 
+def process_2g(image):
+    adjusted_img = image
+    adjusted_img = cv2.GaussianBlur(adjusted_img, (11,11), 20)
+    return adjusted_img
+
 # accepts image
 # returns list of images clipped from original that may be of a license plate
 def possiblePlates_1(image):
